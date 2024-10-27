@@ -9,12 +9,6 @@ from scipy.optimize import curve_fit
 """ 
 Defining necessary functions and variables
 """
-def QFunc(z, zr, w0, lamda):
-    Rfunc = z + zr*zr/z
-    Wfunc = w0 * np.sqrt(1 + (z/zr) * (z/zr))
-    denom = complex(1/Rfunc, - lamda / (np.pi * Wfunc * Wfunc))
-    return 1 / denom
-
 def QuadFit(z, d0, z0, zr):
     """Fit of gaussian beam
 
@@ -36,7 +30,7 @@ def FreeSpaceM(x):
     Args:
         x: Distance
     """
-    return np.array([[1,x],[0,1]])
+    return [[1,x],[0,1]]
 
 def LensM(f1):
     """Lens
@@ -44,19 +38,7 @@ def LensM(f1):
     Args:
         f1: Focal length
     """
-    return np.array([[1,0],[-1/f1, 1]])
-
-def M21(d1, f1):
-    output = np.matmul(LensM(f1), FreeSpaceM(d1))
-    return output
-
-def M321(d1, f1, d2):
-    output = np.matmul(FreeSpaceM(d2)), M21(f1, d1)
-    return output
-
-def M4321(d1, f1, d2, f2):
-    output = np.matmul(LensM(f2), M321(d1, f1, d2))
-    return output
+    return [[1,0],[-1/f1, 1]]
 
 wavelength = 650e-9
 
@@ -72,7 +54,7 @@ wB = np.array([1729.4, 1477.3, 1450.95, 1702.05, 1851.45]) * 1e-6
 # Finds optimal paramteres
 paramsB, covB = curve_fit(QuadFit, dist, wA)
 paramsC, covC = curve_fit(QuadFit, dist, wB)
-x_val = np.linspace(0, max(dist))
+x_val = np.linspace(0, max(dist), 500)
 
 qA = complex(-paramsB[1],paramsB[2])
 qB = complex(-paramsC[1],paramsC[2])
@@ -98,23 +80,52 @@ axs[1].set_ylim(0, max(wB) + 0.1 * max(wB))
 fig.tight_layout()
 plt.show()
 
+print(f"qA={qA}, qB={qB}")
+
 """ 
 Finding evolution of gaussian beam
 """
 # Distances between lenses (to be optimised)
-d1 = 1.0 # Distance from x = 0 to first lens
-d2 = 0.1 # Distance from first lens to second lens
-d3 = 2.0 # Distance between collimators (d3 > d1 + d2)
+d1 = 0.45 # Distance from x = 0 to first lens
+d2 = 0.075 # Distance from first lens to second lens
+d3 = 0.64 # Distance between collimators (d3 > d1 + d2)
+f1 = 0.035 # Focal length of lens 1
+f2 = 0.04 # Focal length of lens 2
+# Creating variable x for each section
+allx = np.linspace(0, d3, 500)
+x1 = np.linspace(0, d1, 500)
+x2 = np.linspace(d1, d1+d2, 500)
+x3 = np.linspace(d1+d2, d3, 500)
 
+M1 = FreeSpaceM(x1)
+M1D = FreeSpaceM(d1)
+M2 = LensM(f1)
+M3 = FreeSpaceM(x2 - d1)
+M3D = FreeSpaceM(d2)
+M4 = LensM(f2)
+M5 = FreeSpaceM(x3 - (d1 + d2))
+M21 = np.matmul(M2, M1D)
+M321 = np.matmul(M3D, M21)
+M4321 = np.matmul(M4, M321)
 
+q1 = (M1[0][0] * qA + M1[0][1]) / (M1[1][0] * qA + M1[1][1])
+q2 = (M21[0][0]* qA + M21[0][1]) / (M21[1][0] * qA + M21[1][1])
+q3 = (M3[0][0] * q2 + M3[0][1]) / (M3[1][0] * q2 + M3[1][1])
+q4 = (M4321[0][0]* qA + M4321[0][1]) / (M4321[1][0] * qA + M4321[1][1])
+q5 = (M5[0][0] * q4 + M5[0][1]) / (M5[1][0] * q4 + M5[1][1])
+qout = qB + d3 - allx
 
-    
+g1 = np.sqrt(-wavelength / (np.pi * (1/q1).imag)) # Path from x=0 to lens 1
+g2 = np.sqrt(-wavelength / (np.pi * (1/q3).imag)) # Path from lens 1 to lens 2
+g3 = np.sqrt(-wavelength / (np.pi * (1/q5).imag)) # Path from lens 2 to inf.
+g4 = np.sqrt(-wavelength / (np.pi * (1/qout).imag)) # Path from recieving collimator
 
-
-
-
-
-
-
-
-
+plt.plot(x1, g1, color = "grey")
+plt.plot(x1, -g1, color = "grey")
+plt.plot(x2, g2, color = "grey")
+plt.plot(x2, -g2, color = "grey")
+plt.plot(x3, g3, color = "grey")
+plt.plot(x3, -g3, color = "grey")
+plt.plot(allx, g4, color = "red")
+plt.plot(allx, -g4, color = "red")
+plt.show()
