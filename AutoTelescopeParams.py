@@ -7,6 +7,12 @@ Constraints:
 *First lens is minimum dmin meters away from first collimator
 *The two lenses are at least 0.02 meters apart
 *The second lens is at least 0.05 meters away from the second collimator
+
+Inputs:
+*List of available lens (focal length) 
+*Minimum distance between first collimator and first lens
+*Distance between the two collimators
+*Beam evolution data to calculate q-parameters
 """
 import numpy as np
 from tqdm import tqdm
@@ -173,5 +179,7 @@ plt.plot(allx, g4, color = "red")
 plt.plot(allx, -g4, color = "red")
 plt.text(0.1,0.5, f'Lens Parameters:\n*f1={f1}m, d1={dvector[0]:.4f}m \n*f2={f2}m, d2={dvector[1]:.4f}m',
          ha="left", va="center", transform=plt.gca().transAxes)
+plt.xlabel("Distance (m)")
+plt.ylabel("Beam width (m)")
 plt.show()
 
